@@ -56,6 +56,7 @@ const GameCanvas: React.FC<GameCanvasProps> = ({ gameState, setGameState, jumpMo
   const monstersRef = useRef<MonsterState[]>([]);
   const keysRef = useRef<{ [key: string]: boolean }>({});
   const logoRef = useRef<HTMLImageElement | null>(null);
+  const avatarRef = useRef<HTMLImageElement | null>(null);
 
   // Load Logo
   useEffect(() => {
@@ -63,6 +64,16 @@ const GameCanvas: React.FC<GameCanvasProps> = ({ gameState, setGameState, jumpMo
     img.src = '/KiloLogo.png';
     img.onload = () => {
       logoRef.current = img;
+    };
+  }, []);
+
+  // Load Player Avatar (Gravatar)
+  useEffect(() => {
+    const img = new Image();
+    img.crossOrigin = 'anonymous';
+    img.src = 'https://github.com/greedisland-gm.png';
+    img.onload = () => {
+      avatarRef.current = img;
     };
   }, []);
 
@@ -219,37 +230,58 @@ const GameCanvas: React.FC<GameCanvasProps> = ({ gameState, setGameState, jumpMo
     const cx = x + p.width / 2;
 
     ctx.save();
-    
+
     // Shadow
     ctx.fillStyle = 'rgba(0,0,0,0.3)';
     ctx.beginPath();
     ctx.ellipse(cx, y + p.height, p.width / 1.5, 5, 0, 0, Math.PI * 2);
     ctx.fill();
 
-    // Body Color
-    ctx.fillStyle = '#eab308'; // Yellow 500
-
-    // Animation Offset
+    // Animation bob offset
     const bob = Math.sin(frameCountRef.current * 0.2) * (Math.abs(p.vx) > 0.1 ? 3 : 1);
 
-    // Legs
-    const legOffset = Math.sin(frameCountRef.current * 0.4) * 10 * (Math.abs(p.vx) > 0.1 ? 1 : 0);
-    ctx.fillRect(cx - 8 + legOffset, y + 30, 6, 20); // Left Leg
-    ctx.fillRect(cx + 2 - legOffset, y + 30, 6, 20); // Right Leg
+    if (avatarRef.current) {
+      // Draw Gravatar avatar as a circular clipped image
+      const avatarSize = p.width * 2; // 60px diameter
+      const avatarX = cx - avatarSize / 2;
+      const avatarY = y + bob;
 
-    // Torso
-    ctx.fillRect(cx - 10, y + 15 + bob, 20, 20);
+      // Flip horizontally when facing left
+      if (p.facing === -1) {
+        ctx.translate(cx * 2, 0);
+        ctx.scale(-1, 1);
+      }
 
-    // Head
-    ctx.fillStyle = '#fef08a'; // Yellow 200
-    ctx.beginPath();
-    ctx.arc(cx, y + 10 + bob, 12, 0, Math.PI * 2);
-    ctx.fill();
+      // Circular clip
+      ctx.beginPath();
+      ctx.arc(cx, avatarY + avatarSize / 2, avatarSize / 2, 0, Math.PI * 2);
+      ctx.closePath();
+      ctx.clip();
 
-    // Eyes (Directional)
-    ctx.fillStyle = '#000';
-    const eyeDir = p.facing === 1 ? 4 : -4;
-    ctx.fillRect(cx + eyeDir - 2, y + 8 + bob, 4, 4);
+      ctx.drawImage(avatarRef.current, avatarX, avatarY, avatarSize, avatarSize);
+    } else {
+      // Fallback: draw original humanoid if avatar not yet loaded
+      ctx.fillStyle = '#eab308'; // Yellow 500
+
+      // Legs
+      const legOffset = Math.sin(frameCountRef.current * 0.4) * 10 * (Math.abs(p.vx) > 0.1 ? 1 : 0);
+      ctx.fillRect(cx - 8 + legOffset, y + 30, 6, 20);
+      ctx.fillRect(cx + 2 - legOffset, y + 30, 6, 20);
+
+      // Torso
+      ctx.fillRect(cx - 10, y + 15 + bob, 20, 20);
+
+      // Head
+      ctx.fillStyle = '#fef08a';
+      ctx.beginPath();
+      ctx.arc(cx, y + 10 + bob, 12, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Eyes (Directional)
+      ctx.fillStyle = '#000';
+      const eyeDir = p.facing === 1 ? 4 : -4;
+      ctx.fillRect(cx + eyeDir - 2, y + 8 + bob, 4, 4);
+    }
 
     ctx.restore();
   };
